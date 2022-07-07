@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from urllib.parse import urlparse, parse_qsl, ParseResult
 from ipaddress import IPv6Address
+from pathlib import PurePath
 
 from public_suffix.structures.public_suffix_list_trie import PublicSuffixListTrie, DomainProperties
 
@@ -17,6 +18,7 @@ class ParsedURI:
     username: str | None = None
     port: int | None = None
     password: str | None = None
+    extension: str | None = None
 
     registered_domain: str | None = None
     subdomain: str | None = None
@@ -68,6 +70,7 @@ def parse_uri(uri_string: str, public_suffix_list_trie: PublicSuffixListTrie | N
         username=parsed_url.username,
         password=parsed_url.password,
         port=port,
+        extension=((PurePath(parsed_url.path).suffix or '').removeprefix('.') or None),
         registered_domain=registered_domain,
         subdomain=subdomain,
         top_level_domain=top_level_domain
