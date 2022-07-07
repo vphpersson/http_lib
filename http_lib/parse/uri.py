@@ -27,7 +27,7 @@ def parse_query_string(query_string: str) -> list[tuple[str, str]]:
     return parse_qsl(qs=query_string, keep_blank_values=True)
 
 
-def parse_uri(uri_string: str, public_suffix_trie: PublicSuffixListTrie | None = None):
+def parse_uri(uri_string: str, public_suffix_list_trie: PublicSuffixListTrie | None = None):
 
     parsed_url: ParseResult = urlparse(url=uri_string)
 
@@ -41,8 +41,8 @@ def parse_uri(uri_string: str, public_suffix_trie: PublicSuffixListTrie | None =
 
         host = str(uri_host)
 
-        if isinstance(uri_host, str) and not isinstance(uri_host, IPvFutureString) and public_suffix_trie:
-            domain_properties: DomainProperties | None = public_suffix_trie.get_domain_properties(domain=host)
+        if isinstance(uri_host, str) and not isinstance(uri_host, IPvFutureString) and public_suffix_list_trie:
+            domain_properties: DomainProperties | None = public_suffix_list_trie.get_domain_properties(domain=host)
 
             registered_domain = domain_properties.registered_domain
             subdomain = domain_properties.subdomain
