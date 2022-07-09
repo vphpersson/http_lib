@@ -8,6 +8,8 @@ from abnf.grammars.misc import load_grammar_rules
 from abnf.grammars import rfc7230
 from abnf.grammars import rfc3986
 
+from http_lib.parse.host import parse_host, IPvFutureString
+
 
 # NOTE: The official, formal `IPv6address` rule requires backtracking, which the `abnf` library does not support.
 @load_grammar_rules([
@@ -45,28 +47,6 @@ class _ForwardedHeaderRule(Rule):
         'ForwardedHeader = %s"Forwarded:" OWS ForwardedValue OWS'
     ]
 
-    def parse_all(self, source: str) -> Node:
-
-        node: Node = super().parse_all(source=source)
-
-        queue: deque[Node] = deque([node])
-        while queue:
-            current_node: Node = queue.popleft()
-            if current_node.name == 'forwarded-pair':
-                lowercase_parameter = current_node.children[0].value.lower()
-
-                if lowercase_parameter in {'for', 'by'}:
-                    if (value_node_child := current_node.children[2].children[0]).name == 'quoted-string':
-                        value = ''.join(child.value for child in value_node_child.children if child.name != 'DQUOTE')
-                    else:
-                        value = current_node.children[2].value
-
-                    setattr(current_node.children[2], 'node', _ForwardedNodeRule('node').parse_all(value))
-            else:
-                queue.extend(current_node.children)
-
-        return node
-
 
 @dataclass
 class ForwardedElement:
@@ -77,22 +57,22 @@ class ForwardedElement:
 
 
 @dataclass
-class NodeForwardedElement:
-    by_value: tuple[str | IPv4Address | IPv6Address | None, int | None] = None
-    for_value: tuple[str | IPv4Address | IPv6Address | None, int | None] = None
-    host_value: str | None = None
+class ParameterParsedForwardedElement:
+    by_value: tuple[str | IPv4Address | IPv6Address, int | None] | None = None
+    for_value: tuple[str | IPv4Address | IPv6Address, int | None] | None = None
+    host_value: tuple[str | IPvFutureString | IPv4Address | IPv6Address, int | None] | None = None
     proto_value: str | None = None
 
 
 def parse_forwarded_header_value(
     forwarded_value: str,
-    use_node: bool = False
-) -> list[NodeForwardedElement] | list[ForwardedElement]:
+    parse_parameter_values: bool = False
+) -> list[ParameterParsedForwardedElement] | list[ForwardedElement]:
     """
     Parse the `Forwarded` header value.
 
     :param forwarded_value: The `Forwarded` header value to be parsed.
-    :param use_node: Whether to parse the node value of the forwarded-elements.
+    :param parse_parameter_values: Whether to parse the parameter values.
     :return: A list of "forwarded-element" structures.
     """
 
@@ -117,29 +97,36 @@ def parse_forwarded_header_value(
 
                 parameters.append(lowercase_parameter)
 
-                value = current_node.children[2].value
+                if (value_node_child := current_node.children[2].children[0]).name == 'quoted-string':
+                    value = ''.join(child.value for child in value_node_child.children if child.name != 'DQUOTE')
+                else:
+                    value = current_node.children[2].value
 
-                if lowercase_parameter in {'for', 'by'} and use_node:
-                    value_node: Node = getattr(current_node.children[2], 'node')
+                if parse_parameter_values:
+                    match lowercase_parameter:
+                        case 'for' | 'by':
+                            value_node: Node = _ForwardedNodeRule('node').parse_all(value)
 
-                    port: int | None = None
-                    if node_port := next((child for child in value_node.children if child.name == 'node-port'), None):
-                        port = int(node_port.value)
+                            port: int | None = None
+                            if node_port := next((child for child in value_node.children if child.name == 'node-port'), None):
+                                port = int(node_port.value)
 
-                    value = value_node.value
+                            value = value_node.value
 
-                    if (ip_address_node := value_node.children[0].children[0]).name == 'IPv4address':
-                        value = IPv4Address(ip_address_node.value), port
-                    elif len(value_node.children[0].children) == 3:
-                        value = IPv6Address(value_node.children[0].children[1].value), port
+                            if (ip_address_node := value_node.children[0].children[0]).name == 'IPv4address':
+                                value = IPv4Address(ip_address_node.value), port
+                            elif len(value_node.children[0].children) == 3:
+                                value = IPv6Address(value_node.children[0].children[1].value), port
+                        case 'host':
+                            value = parse_host(host_value=value)
 
                 values.append(value)
 
             else:
                 queue.extend(current_node.children)
 
-        constructor: Type[NodeForwardedElement | ForwardedElement] = (
-            NodeForwardedElement if use_node else ForwardedElement
+        constructor: Type[ParameterParsedForwardedElement | ForwardedElement] = (
+            ParameterParsedForwardedElement if parse_parameter_values else ForwardedElement
         )
         forwarded_elements.append(
             constructor(
