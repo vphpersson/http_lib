@@ -61,6 +61,10 @@ class Message(ABC):
                             )
                         case _:
                             raise ValueError(f'Unexpected start-line type: {start_line_child.name}')
+
+                    if cls != Message and cls != message_constructor:
+                        raise ValueError('The data does not constitute an HTTP message of the specified type.')
+
                 case 'header-field':
                     headers.append(
                         (
