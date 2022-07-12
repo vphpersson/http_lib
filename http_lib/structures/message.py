@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import ByteString, Type, cast
+from typing import ByteString, Type
 from abc import ABC
 from collections import deque
 
@@ -33,6 +33,14 @@ class Message(ABC):
 
     @classmethod
     def from_string(cls, string: str, store_raw: bool = False) -> 'Message':
+        """
+        Make an HTTP message from a byte string.
+
+        :param string: A string constituting an HTTP message to be parsed.
+        :param store_raw: Whether to store the raw data in the resulting structure.
+        :return: A structure constituting an HTTP message made from the input byte string.
+        """
+
         http_message_node: Node = rfc7230.Rule('HTTP-message').parse_all(source=string)
 
         start_line: RequestLine | StatusLine | None = None
@@ -87,21 +95,34 @@ class Message(ABC):
         return message_constructor(start_line=start_line, headers=headers, body=body, raw=string if store_raw else None)
 
     @classmethod
-    def from_bytes(cls, byte_string: ByteString) -> 'Message':
-        return cls.from_string(string=bytes(byte_string).decode(encoding='charmap'))
+    def from_bytes(cls, byte_string: ByteString, store_raw: bool = False) -> 'Message':
+        """
+        Make an HTTP message from a byte string.
+
+        The byte string is converted to a string then passed to `Message.from_string`.
+
+        :param byte_string: A byte string constituting an HTTP message to be parsed.
+        :param store_raw: Whether to store the raw data in the resulting structure.
+        :return: A structure constituting an HTTP message made from the input byte string.
+        """
+
+        return cls.from_string(
+            string=bytes(byte_string).decode(encoding='charmap'),
+            store_raw=store_raw
+        )
 
 
 @dataclass
 class Request(Message):
 
     @property
-    def request_line(self) -> RequestLine:
-        return cast(RequestLine, self.start_line)
+    def request_line(self) -> RequestLine | None:
+        return self.start_line
 
 
 @dataclass
 class Response(Message):
 
     @property
-    def status_line(self) -> StatusLine:
-        return cast(StatusLine, self.start_line)
+    def status_line(self) -> StatusLine | None:
+        return self.start_line
