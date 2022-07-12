@@ -16,7 +16,10 @@ class MediaType:
         return f'{self.type}/{self.subtype}'
 
 
-def parse_content_type(content_type_value: str) -> MediaType:
+def parse_content_type(content_type_value: str) -> MediaType | None:
+
+    if not content_type_value:
+        return None
 
     node: Node = rfc7231.Rule(name='Content-Type').parse_all(source=content_type_value)
 
