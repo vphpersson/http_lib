@@ -9,19 +9,19 @@ from abnf.grammars import rfc7230
 
 @dataclass
 class StartLine(ABC):
-    http_version: str
+    http_version: str | None = None
 
 
 @dataclass
 class RequestLine(StartLine):
-    method: str
-    request_target: str
+    method: str | None = None
+    request_target: str | None = None
 
 
 @dataclass
 class StatusLine(StartLine):
-    status_code: int
-    reason_phrase: str
+    status_code: int | None = None
+    reason_phrase: str | None = None
 
 
 @dataclass
