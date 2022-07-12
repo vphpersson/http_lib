@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import ByteString, Type
+from typing import ByteString, Type, cast
 from abc import ABC
 from collections import deque
 
@@ -8,22 +8,25 @@ from abnf.grammars import rfc7230
 
 
 @dataclass
-class RequestLine:
-    method: str
-    request_target: str
+class StartLine(ABC):
     http_version: str
 
 
 @dataclass
-class StatusLine:
-    http_version: str
+class RequestLine(StartLine):
+    method: str
+    request_target: str
+
+
+@dataclass
+class StatusLine(StartLine):
     status_code: int
     reason_phrase: str
 
 
 @dataclass
 class Message(ABC):
-    start_line: RequestLine | StatusLine | None = None
+    start_line: StartLine | None = None
     headers: list[tuple[str, str]] = field(default_factory=list)
     body: str | None = None
     raw: str | None = None
@@ -93,7 +96,7 @@ class Request(Message):
 
     @property
     def request_line(self) -> RequestLine:
-        return self.start_line
+        return cast(RequestLine, self.start_line)
 
 
 @dataclass
@@ -101,4 +104,4 @@ class Response(Message):
 
     @property
     def status_line(self) -> StatusLine:
-        return self.start_line
+        return cast(StatusLine, self.start_line)
