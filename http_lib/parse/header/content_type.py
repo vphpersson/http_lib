@@ -46,7 +46,3 @@ def parse_content_type(content_type_value: ByteString | memoryview) -> MediaType
                 parameters.append((str(node.get_field(name='parameter-name')), value.decode()))
 
     return MediaType(type=media_type_type, subtype=media_type_subtype, parameters=parameters)
-
-
-o = parse_content_type(content_type_value=b'text/html; charset=ISO-8859-4')
-m = 1
