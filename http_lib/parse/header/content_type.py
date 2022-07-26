@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
-from collections import deque
+from typing import ByteString
 
-from abnf.grammars import rfc7231
-from abnf import Node
+from abnf_parse.rulesets.rfc9110 import RFC9110_RULESET
 
 
 @dataclass
@@ -16,37 +15,38 @@ class MediaType:
         return f'{self.type}/{self.subtype}'
 
 
-def parse_content_type(content_type_value: str) -> MediaType | None:
+def parse_content_type(content_type_value: ByteString | memoryview) -> MediaType | None:
 
     if not content_type_value:
         return None
 
-    node: Node = rfc7231.Rule(name='Content-Type').parse_all(source=content_type_value)
+    content_type_node = RFC9110_RULESET['Content-Type'].evaluate(source=content_type_value)
+    if not content_type_node:
+        return None
 
     media_type_type: str | None = None
     media_type_subtype: str | None = None
     parameters: list[tuple[str, str]] = []
 
-    queue: deque[Node] = deque([node])
-    while queue:
-        current_node: Node = queue.popleft()
-
-        match current_node.name:
+    for node in content_type_node.search(name={'type', 'subtype', 'parameter'}):
+        match node.name:
             case 'type':
-                media_type_type: str = current_node.value
+                media_type_type = str(node)
             case 'subtype':
-                media_type_subtype: str = current_node.value
+                media_type_subtype = str(node)
             case 'parameter':
-                key: str = current_node.children[0].value
-                value_node: Node = current_node.children[2]
-
-                if value_node.name == 'quoted-string':
-                    value: str = ''.join(child.value for child in value_node.children if child.name != 'DQUOTE')
+                parameter_value_node = node.get_field(name='parameter-value')
+                if quoted_string_node := parameter_value_node.get_field(name='quoted-string'):
+                    value = quoted_string_node.source[
+                        quoted_string_node.start_offset+1:quoted_string_node.end_offset-1
+                    ].tobytes()
                 else:
-                    value: str = value_node.value
+                    value = parameter_value_node.get_value()
 
-                parameters.append((key, value))
-            case _:
-                queue.extend(current_node.children)
+                parameters.append((str(node.get_field(name='parameter-name')), value.decode()))
 
     return MediaType(type=media_type_type, subtype=media_type_subtype, parameters=parameters)
+
+
+o = parse_content_type(content_type_value=b'text/html; charset=ISO-8859-4')
+m = 1

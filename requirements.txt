@@ -1,2 +1,2 @@
-git+https://github.com/declaresub/abnf.git#egg=abnf
+git+https://github.com/vphpersson/abnf_parse.git#egg=abnf_parse
 git+https://github.com/vphpersson/public_suffix.git#egg=public_suffix
