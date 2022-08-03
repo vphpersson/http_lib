@@ -24,11 +24,11 @@ class ParameterParsedForwardedElement:
 
 
 def parse_forwarded_header_value(
-    forwarded_value: ByteString | memoryview,
+    forwarded_value: ByteString | memoryview | str,
     parse_parameter_values: bool = False
 ) -> list[ParameterParsedForwardedElement] | list[ForwardedElement]:
     """
-    Parse the `Forwarded` header value.
+    Parse a `Forwarded` header value.
 
     :param forwarded_value: The `Forwarded` header value to be parsed.
     :param parse_parameter_values: Whether to parse the parameter values.

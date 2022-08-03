@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='http_lib',
-    version='0.31',
+    version='0.4',
     packages=find_packages(),
     install_requires=[
         'abnf_parse @ git+https://github.com/vphpersson/abnf_parse.git#egg=abnf_parse',

@@ -15,7 +15,7 @@ class MediaType:
         return f'{self.type}/{self.subtype}'
 
 
-def parse_content_type(content_type_value: ByteString | memoryview) -> MediaType | None:
+def parse_content_type(content_type_value: ByteString | memoryview | str) -> MediaType | None:
 
     if not content_type_value:
         return None

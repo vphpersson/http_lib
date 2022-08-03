@@ -5,12 +5,11 @@ from abnf_parse.rulesets.rfc9110 import RFC9110_RULESET
 
 
 class IPvFutureString(str):
-    def __init__(self, *args):
-        super().__init__(*args)
+    pass
 
 
 def parse_host(
-    host_value: ByteString | memoryview
+    host_value: ByteString | memoryview | str
 ) -> tuple[str | IPvFutureString | IPv4Address | IPv6Address, int | None]:
     """
     Parse a host value into a URI host and an optional port number.
