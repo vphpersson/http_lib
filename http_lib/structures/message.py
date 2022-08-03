@@ -58,8 +58,8 @@ class StartLine(ABC):
                 )
             case 'status-line':
                 return StatusLine(
-                    http_version=str(node.get_field(name='HTTP-version')),
-                    status_code=int(str(node.get_field(name='status-code'))),
+                    http_version=str(node.children[0].get_field(name='HTTP-version')),
+                    status_code=int(str(node.children[0].get_field(name='status-code'))),
                     reason_phrase=(
                         str(reason_phrase_node)
                         if (reason_phrase_node := node.get_field(name='reason-phrase'))
@@ -163,28 +163,31 @@ async def message_body_from_reader(
     if chunked:
         chunk_size_bytes: bytes
         while chunk_size_bytes := await wait_for(fut=reader.readuntil(separator=b'\r\n'), timeout=timeout):
-            num_bytes_to_read = int(chunk_size_bytes.decode()[:-2], base=16) + 2
+            num_content_bytes = int(chunk_size_bytes.decode()[:-2], base=16)
 
-            if num_bytes_to_read == 0:
-                yield chunk_size_bytes
+            if num_content_bytes == 0:
                 break
 
             # Read the chunk, including a trailing CRLF.
             chunk_bytes = await wait_for(
-                fut=reader.readexactly(n=num_bytes_to_read),
+                fut=reader.readexactly(n=num_content_bytes + 2),
                 timeout=timeout
             )
 
             yield chunk_size_bytes + chunk_bytes
 
-        while trailer := await wait_for(fut=reader.readuntil(separator=b'\r\n'), timeout=timeout):
-            if trailer != b'\r\n' and not includes_trailers:
-                raise ValueError('A trailer was included even though the `Trailers` HTTP header was not included.')
+        if includes_trailers:
+            while trailer := await wait_for(fut=reader.readuntil(separator=b'\r\n'), timeout=timeout):
+                yield trailer
 
-            yield trailer
+                if trailer == b'\r\n':
+                    break
+        else:
+            crlf = await wait_for(fut=reader.readuntil(separator=b'\r\n'), timeout=timeout)
+            if len(crlf) != 2:
+                raise ValueError('Additional data after body.')
 
-            if trailer == b'\r\n':
-                break
+            yield chunk_size_bytes + crlf
     elif content_length is not None:
         yield await wait_for(fut=reader.readexactly(n=content_length), timeout=timeout)
 
